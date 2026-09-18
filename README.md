@@ -6,10 +6,20 @@
 Everything - data ingest **and** Agent Builder setup - runs from a single script:
 
 ```bash
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+# Install dependencies and run the setup script
 pip install -r requirements.txt
+python setup_hacknight.py
+```
+
+The script reads your credentials from the `.env` file automatically. Alternatively, you can export them as environment variables:
+
+```bash
 export ELASTIC_ENDPOINT="https://your-project.es.region.aws.elastic.cloud"
 export ELASTIC_API_KEY="your-elastic-api-key"
-python setup_hacknight.py
 ```
 
 The script:

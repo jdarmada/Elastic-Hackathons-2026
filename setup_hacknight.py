@@ -47,7 +47,32 @@ AGENT_ID = 'wc2026_predictor'
 # Connection helpers
 # ---------------------------------------------------------------------------
 
+def load_env_file(path='.env'):
+    """Load KEY=value pairs from a .env file into os.environ.
+
+    Supports optional 'export ' prefixes and quoted values. Real environment
+    variables take precedence over the file.
+    """
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+    if not os.path.exists(env_path):
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            if line.startswith('export '):
+                line = line[len('export '):]
+            key, _, value = line.partition('=')
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and value and key not in os.environ:
+                os.environ[key] = value
+    print(f'ℹ️  Loaded credentials from {env_path}')
+
+
 def get_config():
+    load_env_file()
     endpoint = os.environ.get('ELASTIC_ENDPOINT', '').strip()
     api_key = os.environ.get('ELASTIC_API_KEY', '').strip()
 

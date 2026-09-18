@@ -11,10 +11,20 @@ The agent pulls live stats from Elasticsearch, reasons over them, and gives you 
 ### ⚡ Option 0 - One script does everything (recommended)
 
 ```bash
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+# Install dependencies and run the setup script
 pip install -r requirements.txt
+python setup_hacknight.py
+```
+
+The script reads your credentials from the `.env` file automatically (copy them from Elastic Cloud Console → Your Project → Connection Details). Alternatively, export them as environment variables:
+
+```bash
 export ELASTIC_ENDPOINT="https://your-project.es.region.aws.elastic.cloud"
 export ELASTIC_API_KEY="your-elastic-api-key"
-python setup_hacknight.py
 ```
 
 This ingests both indices (`wc2026_matches` and `wc2026_match_stories`), creates all four Agent Builder tools via the Kibana API, and creates the agent. Open **Kibana → Agents** and start chatting. Use `--data-only` or `--agent-only` to run just one half.
@@ -69,6 +79,10 @@ If you'd prefer to run on your own machine:
 **Requirements:** Python 3.9+ with pip installed. Check with `python --version` in a terminal.
 
 ```bash
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
 # Install Jupyter and dependencies
 pip install jupyter elasticsearch requests
 
