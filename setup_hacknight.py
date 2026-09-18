@@ -9,14 +9,20 @@ Does everything in one run:
   3. Generates a natural-language story/description for every match and
      ingests them into `wc2026_match_stories` - a semantic_text index that
      is embedded automatically by the Elastic Inference Service (EIS)
-  4. Creates four Agent Builder tools via the Kibana API:
+  4. Creates the "WC2026 Daily Briefing" Elastic Workflow - a scheduled
+     pipeline that runs every day (or on demand): queries the latest results,
+     next fixtures, and standout stories, has an LLM write a matchday
+     briefing, and archives it in `wc2026_daily_briefings`
+  5. Creates five Agent Builder tools via the Kibana API:
        - get_team_form
        - get_team_stats_2026
        - get_upcoming_fixtures
-       - search_match_stories   <- hybrid search (lexical + semantic, RRF)
-  5. Creates the `wc2026_predictor` agent wired to all four tools
+       - search_match_stories      <- hybrid search (lexical + semantic, RRF)
+       - generate_daily_briefing   <- triggers the workflow from chat
+  6. Creates the `wc2026_predictor` agent wired to all five tools
 
 Usage:
+    # credentials are read from .env automatically, or export them:
     export ELASTIC_ENDPOINT="https://your-project.es.region.aws.elastic.cloud"
     export ELASTIC_API_KEY="your-api-key"
     # optional - derived from ELASTIC_ENDPOINT (.es. -> .kb.) if not set:
@@ -24,7 +30,7 @@ Usage:
 
     python setup_hacknight.py              # everything
     python setup_hacknight.py --data-only  # only ingest the two indices
-    python setup_hacknight.py --agent-only # only create tools + agent
+    python setup_hacknight.py --agent-only # only create workflow + tools + agent
 
 Credentials: Elastic Cloud Console -> Your Project -> Connection Details.
 The same API key works for both Elasticsearch and Kibana.
@@ -40,7 +46,10 @@ from elasticsearch import Elasticsearch, helpers
 DATA_URL = 'https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json'
 MATCHES_INDEX = 'wc2026_matches'
 STORIES_INDEX = 'wc2026_match_stories'
+BRIEFINGS_INDEX = 'wc2026_daily_briefings'
 AGENT_ID = 'wc2026_predictor'
+WORKFLOW_NAME = 'WC2026 Daily Briefing'
+WORKFLOW_TOOL_ID = 'generate_daily_briefing'
 
 
 # ---------------------------------------------------------------------------
@@ -528,6 +537,10 @@ AGENT = {
             '(BM25 + semantic vector search fused with RRF) over match narratives, so it understands meaning, '
             'not just keywords. You can also use it to add colour to predictions (e.g. find both teams\' most '
             'dramatic moments).\n\n'
+            'When a user asks for a daily briefing, digest, or roundup of the tournament, use '
+            'generate_daily_briefing if it is available. It runs a deterministic Elastic Workflow (the same '
+            'one that runs automatically every day) that gathers the latest data, writes the briefing, and '
+            'archives it in the wc2026_daily_briefings index - tell the user it has been saved there too.\n\n'
             'Always ground your answers in the 2026 data.\n\n'
             'Keep your tone punchy and engaging.\n\n'
             'Only answer questions about the 2026 World Cup. Politely decline anything off-topic.'
@@ -546,6 +559,104 @@ AGENT = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Step 6 - Scheduled Elastic Workflow: daily tournament briefing
+#
+# Runs on its own every day (no agent, no user) - pulls the latest results,
+# next fixtures, and standout stories, has the LLM write a matchday briefing,
+# and archives it in wc2026_daily_briefings. The manual trigger is there too
+# so it can be demoed instantly from Kibana → Workflows → Run, and it is also
+# registered as an Agent Builder tool so the agent can trigger it from chat.
+# ---------------------------------------------------------------------------
+
+WORKFLOW_YAML = f"""\
+name: {WORKFLOW_NAME}
+description: Writes a daily 2026 World Cup briefing from the latest data and archives it in {BRIEFINGS_INDEX}.
+enabled: true
+triggers:
+  - type: scheduled
+    with:
+      every: 1d
+  - type: manual
+steps:
+  - name: latest_results
+    type: elasticsearch.search
+    with:
+      index: {MATCHES_INDEX}
+      size: 8
+      sort:
+        - date: desc
+      query:
+        term:
+          status: played
+
+  - name: next_fixtures
+    type: elasticsearch.search
+    with:
+      index: {MATCHES_INDEX}
+      size: 8
+      sort:
+        - date: asc
+      query:
+        term:
+          status: upcoming
+
+  - name: talking_points
+    type: elasticsearch.search
+    with:
+      index: {STORIES_INDEX}
+      size: 3
+      query:
+        semantic:
+          field: story_semantic
+          query: dramatic, surprising, high-stakes matches with big storylines
+
+  - name: write_briefing
+    type: ai.prompt
+    with:
+      prompt: >
+        You are the editor of a daily 2026 FIFA World Cup newsletter.
+        Write today's briefing using ONLY the data below. Structure it as:
+        Headline, Latest results (one line each), What to watch next
+        (upcoming fixtures worth attention and why), and Storyline of the day.
+        Keep it punchy and under 300 words.
+
+        Latest results: {{{{ steps.latest_results.output.hits.hits | json }}}}
+        Upcoming fixtures: {{{{ steps.next_fixtures.output.hits.hits | json }}}}
+        Standout stories: {{{{ steps.talking_points.output.hits.hits | json }}}}
+
+  - name: save_briefing
+    type: elasticsearch.index
+    with:
+      index: {BRIEFINGS_INDEX}
+      document:
+        briefing: "{{{{ steps.write_briefing.output.content }}}}"
+        generated_by: "{WORKFLOW_NAME}"
+      refresh: wait_for
+
+  - name: done
+    type: console
+    with:
+      message: "Daily briefing archived in {BRIEFINGS_INDEX}."
+"""
+
+WORKFLOW_TOOL = {
+    'id': WORKFLOW_TOOL_ID,
+    'type': 'workflow',
+    'description': (
+        'Generates today\'s World Cup briefing (headline, latest results, what to watch next, storyline '
+        'of the day) from live tournament data and archives it in the wc2026_daily_briefings index. '
+        'The same workflow also runs automatically on a daily schedule. Use this when the user asks for '
+        'a daily briefing, digest, roundup, or "what happened / what\'s coming up" summary. It runs a '
+        'deterministic Elastic Workflow, so it may take up to a minute.'
+    ),
+    'configuration': {
+        'workflow_id': None,  # filled in at runtime with the created workflow's id
+        'wait_for_completion': True,
+    },
+}
+
+
 def kibana_headers(api_key):
     return {
         'Authorization': f'ApiKey {api_key}',
@@ -554,21 +665,74 @@ def kibana_headers(api_key):
     }
 
 
-def create_agent_builder(kibana, api_key):
+def create_workflow(kibana, api_key, name, yaml_def):
+    """Create or update a workflow by name. Returns its id, or None.
+
+    Workflow deletes are soft, so custom ids stay reserved forever and
+    delete-then-create 409s on re-runs. Instead: find an existing workflow by
+    name and update it in place, or create one with a server-generated id.
+    Workflows is a newer feature (tech preview) - if it is unavailable or
+    disabled, warn and continue so the rest of the setup still works.
+    """
+    headers = kibana_headers(api_key)
+
+    workflow_id = None
+    r = requests.get(f'{kibana}/api/workflows', headers=headers, timeout=30)
+    if r.status_code < 300:
+        for wf in r.json().get('results', []):
+            if wf.get('name') == name:
+                workflow_id = wf['id']
+                break
+
+    if workflow_id:
+        r = requests.put(
+            f'{kibana}/api/workflows/workflow/{workflow_id}',
+            headers=headers,
+            json={'yaml': yaml_def},
+            timeout=30,
+        )
+    else:
+        r = requests.post(
+            f'{kibana}/api/workflows/workflow',
+            headers=headers,
+            json={'yaml': yaml_def},
+            timeout=30,
+        )
+        if r.status_code < 300:
+            workflow_id = r.json().get('id')
+
+    if r.status_code >= 300 or not workflow_id:
+        print(f'⚠️  Could not create workflow "{name}": {r.status_code} {r.text[:300]}')
+        print('   Workflows may need enabling: Kibana → Stack Management → Advanced Settings → Workflows.')
+        return None
+    print(f'   ✅ Workflow ready: "{name}" (id: {workflow_id})')
+    return workflow_id
+
+
+def create_agent_builder(kibana, api_key, workflow_id=None):
     print('\n🤖 Creating Agent Builder tools and agent ...')
     headers = kibana_headers(api_key)
 
-    for tool in TOOLS:
-        # Delete-then-create keeps the script idempotent across re-runs
-        requests.delete(f'{kibana}/api/agent_builder/tools/{tool["id"]}', headers=headers, timeout=30)
+    # Delete the agent first - Kibana refuses to delete tools still referenced
+    # by an agent - then delete-then-create each tool to stay idempotent.
+    requests.delete(f'{kibana}/api/agent_builder/agents/{AGENT_ID}', headers=headers, timeout=30)
+
+    if workflow_id:
+        WORKFLOW_TOOL['configuration']['workflow_id'] = workflow_id
+    tools = TOOLS + ([WORKFLOW_TOOL] if workflow_id else [])
+    for tool in tools:
+        requests.delete(f'{kibana}/api/agent_builder/tools/{tool["id"]}?force=true', headers=headers, timeout=30)
         r = requests.post(f'{kibana}/api/agent_builder/tools', headers=headers, json=tool, timeout=30)
         if r.status_code >= 300:
             print(f'❌ Failed to create tool {tool["id"]}: {r.status_code} {r.text[:300]}')
             sys.exit(1)
         print(f'   ✅ Tool created: {tool["id"]}')
 
-    requests.delete(f'{kibana}/api/agent_builder/agents/{AGENT_ID}', headers=headers, timeout=30)
-    r = requests.post(f'{kibana}/api/agent_builder/agents', headers=headers, json=AGENT, timeout=30)
+    agent = AGENT
+    if workflow_id and WORKFLOW_TOOL_ID not in agent['configuration']['tools'][0]['tool_ids']:
+        agent['configuration']['tools'][0]['tool_ids'].append(WORKFLOW_TOOL_ID)
+
+    r = requests.post(f'{kibana}/api/agent_builder/agents', headers=headers, json=agent, timeout=30)
     if r.status_code >= 300:
         print(f'❌ Failed to create agent {AGENT_ID}: {r.status_code} {r.text[:300]}')
         sys.exit(1)
@@ -595,7 +759,9 @@ def main():
         ingest_stories(es, match_docs)
 
     if not args.data_only:
-        create_agent_builder(kibana, api_key)
+        print('\n🧩 Creating Elastic Workflow ...')
+        workflow_id = create_workflow(kibana, api_key, WORKFLOW_NAME, WORKFLOW_YAML)
+        create_agent_builder(kibana, api_key, workflow_id=workflow_id)
 
     print('\n🎉 Done! Open Kibana → Agents and chat with the World Cup 2026 Predictor.')
     print('   Try: "Find the most dramatic comebacks of the tournament so far"')

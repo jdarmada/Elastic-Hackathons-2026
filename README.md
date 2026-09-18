@@ -27,10 +27,21 @@ The script:
 1. Fetches **live 2026 World Cup data** from [openfootball/worldcup.json](https://github.com/openfootball/worldcup.json)
 2. Ingests it into the **`wc2026_matches`** index (structured match data - same schema as the notebook)
 3. Generates a **natural-language story for every match** and ingests them into **`wc2026_match_stories`** - a `semantic_text` index embedded automatically by EIS, ready for **vector search**
-4. Creates **four Agent Builder tools** via the Kibana API - team form, team stats, upcoming fixtures, and **`search_match_stories`, a hybrid search tool** (BM25 + semantic vector search fused with RRF)
-5. Creates the **World Cup 2026 Predictor** agent wired to all four tools
+4. Creates the **WC2026 Daily Briefing** Elastic Workflow - a **scheduled agentic pipeline** that runs every day: it queries the latest results, next fixtures, and standout match stories, has an LLM write a matchday briefing, and archives it in the **`wc2026_daily_briefings`** index
+5. Creates **five Agent Builder tools** via the Kibana API - team form, team stats, upcoming fixtures, **`search_match_stories`, a hybrid search tool** (BM25 + semantic vector search fused with RRF), and **`generate_daily_briefing`**, which lets the agent trigger the workflow from chat
+6. Creates the **World Cup 2026 Predictor** agent wired to all five tools
 
-Then open **Kibana → Agents** and ask: *"Find the most dramatic comebacks of the tournament so far"*.
+Then open **Kibana → Agents** and ask: *"Find the most dramatic comebacks of the tournament so far"* - or *"Give me today's briefing"* to watch the agent kick off the workflow.
+
+### The scheduled workflow
+
+The **WC2026 Daily Briefing** workflow (see it in **Kibana → Workflows**) is the end-to-end agentic piece: search → LLM → write-back, no human in the loop.
+
+- **Runs on a schedule** - every day (`every: 1d`), with no agent or user involved
+- **Runs on demand** - hit **Run** in Kibana → Workflows, or ask the agent for a daily briefing in chat
+- **Closes the loop** - every run archives the finished briefing as a document in `wc2026_daily_briefings`, so the briefings themselves become searchable data
+
+> Workflows is a tech-preview feature. If workflow creation fails, enable it under **Kibana → Stack Management → Advanced Settings → Workflows** and re-run `python setup_hacknight.py --agent-only`.
 
 > Credentials: Copy your credentials into .env
 
@@ -53,6 +64,10 @@ Handy documentation and references for building tonight.
 ### Getting started
 - [Elasticsearch quickstart](https://www.elastic.co/docs/solutions/search/get-started) - your first index and query
 - [Connecting to Elasticsearch](https://www.elastic.co/docs/reference/elasticsearch/clients) - endpoints, API keys, and client setup
+
+### Workflows
+- [Elastic Workflows overview](https://www.elastic.co/docs/explore-analyze/workflows) - YAML-defined automation: triggers, steps, AI steps
+- [Connecting agents and workflows](https://www.elastic.co/docs/explore-analyze/ai-features/agent-builder/agents-and-workflows) - workflow tools, `ai.prompt` / `ai.agent` steps
 
 ### Agent Builder
 - [Agent Builder overview](https://www.elastic.co/docs/explore-analyze/ai-features/elastic-agent-builder)

@@ -27,7 +27,9 @@ export ELASTIC_ENDPOINT="https://your-project.es.region.aws.elastic.cloud"
 export ELASTIC_API_KEY="your-elastic-api-key"
 ```
 
-This ingests both indices (`wc2026_matches` and `wc2026_match_stories`), creates all four Agent Builder tools via the Kibana API, and creates the agent. Open **Kibana → Agents** and start chatting. Use `--data-only` or `--agent-only` to run just one half.
+This ingests both indices (`wc2026_matches` and `wc2026_match_stories`), creates the **WC2026 Daily Briefing** scheduled workflow, creates all five Agent Builder tools via the Kibana API, and creates the agent. Open **Kibana → Agents** and start chatting. Use `--data-only` or `--agent-only` to run just one half.
+
+**The scheduled workflow:** the setup also creates an Elastic Workflow that runs **every day on its own** - it queries the latest results, next fixtures, and standout stories, has an LLM write a matchday briefing, and archives it in the `wc2026_daily_briefings` index. Demo it instantly from **Kibana → Workflows → WC2026 Daily Briefing → Run**, or ask the agent *"Give me today's briefing"* - it triggers the same workflow through the `generate_daily_briefing` tool. (Workflows is tech preview - if creation fails, enable it in **Stack Management → Advanced Settings → Workflows** and re-run with `--agent-only`.)
 
 Prefer to build it step by step? The project has two parts:
 
