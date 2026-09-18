@@ -671,8 +671,8 @@ def create_workflow(kibana, api_key, name, yaml_def):
     Workflow deletes are soft, so custom ids stay reserved forever and
     delete-then-create 409s on re-runs. Instead: find an existing workflow by
     name and update it in place, or create one with a server-generated id.
-    Workflows is a newer feature (tech preview) - if it is unavailable or
-    disabled, warn and continue so the rest of the setup still works.
+    If Workflows is unavailable or disabled, warn and continue so the rest
+    of the setup still works.
     """
     headers = kibana_headers(api_key)
 

@@ -41,7 +41,7 @@ The **WC2026 Daily Briefing** workflow (see it in **Kibana → Workflows**) is t
 - **Runs on demand** - hit **Run** in Kibana → Workflows, or ask the agent for a daily briefing in chat
 - **Closes the loop** - every run archives the finished briefing as a document in `wc2026_daily_briefings`, so the briefings themselves become searchable data
 
-> Workflows is a tech-preview feature. If workflow creation fails, enable it under **Kibana → Stack Management → Advanced Settings → Workflows** and re-run `python setup_hacknight.py --agent-only`.
+> If workflow creation fails, check that Workflows is enabled under **Kibana → Stack Management → Advanced Settings → Workflows** and re-run `python setup_hacknight.py --agent-only`.
 
 > Credentials: Copy your credentials into .env
 
