@@ -1,10 +1,7 @@
-# Elastic and AWS Hack Night (World Cup Edition)
+# Elastic Hackathons (World Cup Data)
 
-Welcome to the **Elastic and AWS Hack Night**! Tonight you'll build a project using **Elasticsearch** and **public soccer datasets** to create search experiences, AI applications, or anything else you can imagine.
 
-Whether you're exploring semantic search, building a RAG chatbot, or experimenting with vector search, this is your chance to showcase what's possible with Elasticsearch.
-
-## ⚡ Quick Start - One Script
+## Quick Start - One Script
 
 Everything - data ingest **and** Agent Builder setup - runs from a single script:
 
@@ -25,40 +22,7 @@ The script:
 
 Then open **Kibana → Agents** and ask: *"Find the most dramatic comebacks of the tournament so far"*.
 
-> Credentials: **Elastic Cloud Console → Your Project → Connection Details**. The same API key works for Elasticsearch and Kibana. See [starter_project.md](starter_project.md) for details and [agent_builder_guide.md](agent_builder_guide.md) to understand (or hand-build) each tool.
-
-## Judging Criteria and Presentations
-
-Projects will be evaluated on the following:
-
-| Criteria | Description |
-|----------|-------------|
-| **Use of Elasticsearch** | Demonstrates meaningful use of Elasticsearch features such as search, aggregations, vector search, and Agent Builder. |
-| **Use of AWS Bedrock** | Use of a managed LLM through AWS Bedrock. The easiest path is the **Elastic Inference Service (EIS)** - its LLM and embedding models are hosted on Bedrock with zero setup, so the built-in Agent Builder chat already counts. See the [EIS guide](eis_guide.md). |
-| **Creativity** | Presents a unique idea, novel user experience, or interesting technical implementation. |
-| **Usefulness** | Solves a real problem or provides valuable insights from the data. |
-
-At the end, you'll have the chance to present what you built, no matter how complete your project is. Don't be shy! It's in the spirit of the event to show off your ideas even if it's not done. 
-
-Some presentation guidelines:
-- **1-2 mins max**
-- Quickly mention what the project does, but more importantly, show the Elasticsearch portion from the queries you used, the custom tools and agents you built within Agent Builder.
-
-## Prizes
-
-The **top three projects** will each win a pair of **Meta Ray-Ban Smart Glasses**.
-
-Good luck, have fun, and happy hacking!
-
-## What you can build
-
-You have the choice on where to start:
-1. Head to [starter_project.md](starter_project.md) and follow the steps to build the World Cup Predictor agent. Extend this project by adding more data, queries, features, nuance etc.
-2. A completely new project that uses Elasticsearch, AWS Bedrock (through EIS) and soccer data in some capacity. Head over to [open_challenge.md](open_challenge.md) for examples of what you can build and an example of how to ingest data.
-
-Either direction you follow you must use a serverless Elastic deployment: [Elastic Cloud Serverless free-trial](https://www.elastic.co/cloud/cloud-trial-overview)
-
-**Need an LLM or embeddings?** Use the **Elastic Inference Service (EIS)** - Bedrock-hosted models with no API keys and no setup. See the [EIS guide](eis_guide.md) for using it as your agent's LLM, for semantic search, and for embeddings.
+> Credentials: Copy your credentials into .env
 
 
 ## Public Soccer Datasets
@@ -101,11 +65,6 @@ Handy documentation and references for building tonight.
 - [Python Elasticsearch client](https://www.elastic.co/docs/reference/elasticsearch/clients/python) - what the notebook uses
 - [Bulk API](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-bulk) - efficient batch indexing
 - [Upload a file in Kibana](https://www.elastic.co/docs/manage-data/ingest/upload-data-files) - no-code CSV/JSON ingest
-
-### AI models - Elastic Inference Service (EIS, recommended) & AWS Bedrock
-- **[EIS guide (this repo)](eis_guide.md)** - use Bedrock-hosted LLMs and embeddings with zero setup, no keys
-- [Elastic Inference Service docs](https://www.elastic.co/docs/explore-analyze/elastic-inference/eis)
-- [Model configuration in Agent Builder](https://www.elastic.co/docs/explore-analyze/ai-features/agent-builder/models)
 
 
 
